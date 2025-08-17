@@ -15,10 +15,7 @@
       "name": "Debug Server",
       "program": "${workspaceFolder}/server/src/index.ts",
       "preLaunchTask": "npm: build:server",
-      "outFiles": [
-        "${workspaceFolder}/server/dist/**/*.{js,cjs,mjs}",
-        "!**/node_modules/**"
-      ]
+      "outFiles": ["${workspaceFolder}/server/dist/**/*.{js,cjs,mjs}", "!**/node_modules/**"]
     }
   ],
   "compounds": [

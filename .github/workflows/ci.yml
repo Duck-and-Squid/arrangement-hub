@@ -5,6 +5,8 @@ on:
     branches: [main]
   push:
     branches: [main]
+  release:
+    types: [published]
 
 jobs:
   build-container:
@@ -12,8 +14,7 @@ jobs:
     permissions:
       packages: write
       contents: read
-    outputs:
-      image_tag: ${{ steps.set_tag.outputs.tag }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -43,84 +44,92 @@ jobs:
           context: .
           file: .devcontainer/Dockerfile
           push: true
-          tags: ${{ env.TAG }}
+          tags: ${{ github.env.TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   lint-client:
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-container.outputs.image_tag }}
+      image: ${{ github.env.TAG }}
     needs: build-container
     steps:
       - run: echo "Lint client"
 
-  build-client:
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-container.outputs.image_tag }}
-    needs: [build-container, lint-client]
-    steps:
-      - run: echo "Build client"
-
   unit-test-client:
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-container.outputs.image_tag }}
-    needs: [build-container, build-client]
+      image: ${{ github.env.TAG }}
+    needs: lint-client
     steps:
       - run: echo "Unit test client"
+
+  build-client:
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ github.env.TAG }}
+    needs: unit-test-client
+    steps:
+      - run: echo "Build client"
 
   lint-server:
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-container.outputs.image_tag }}
-    needs: [build-container, build-container]
+      image: ${{ github.env.TAG }}
+    needs: build-container
     steps:
       - run: echo "Lint server"
-
-  build-server:
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.build-container.outputs.image_tag }}
-    needs: [build-container, lint-server]
-    steps:
-      - run: echo "Build server"
 
   unit-test-server:
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-container.outputs.image_tag }}
-    needs: [build-container, build-server]
+      image: ${{ github.env.TAG }}
+    needs: lint-server
     steps:
       - run: echo "Unit test server"
+
+  build-server:
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ github.env.TAG }}
+    needs: unit-test-server
+    steps:
+      - run: echo "Build server"
 
   create-server-runtime:
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-container.outputs.image_tag }}
-    needs: [build-container, unit-test-server]
+      image: ${{ github.env.TAG }}
+    needs: build-server
     steps:
       - run: echo "Create server runtime container"
+
+  integration-test:
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ github.env.TAG }}
+    needs: create-server-runtime
+    steps:
+      - run: echo "Run integration tests"
 
   e2e-test:
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.build-container.outputs.image_tag }}
-    needs: [build-container, unit-test-client, unit-test-server]
+      image: ${{ github.env.TAG }}
+    needs: [build-client, integration-test]
     steps:
       - run: echo "Run E2E tests"
 
   deploy-client:
     runs-on: ubuntu-latest
     needs: e2e-test
-    if: github.event_name == 'push'
+    if: github.event_name == 'release'
     steps:
       - run: echo "Deploy client"
 
   deploy-server:
     runs-on: ubuntu-latest
     needs: [e2e-test, create-server-runtime]
-    if: github.event_name == 'push'
+    if: github.event_name == 'release'
     steps:
       - run: echo "Deploy server"

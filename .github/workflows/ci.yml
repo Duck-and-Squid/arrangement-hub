@@ -37,6 +37,7 @@ jobs:
           TAG="ghcr.io/${IMAGE_REPOSITORY}/devimage:${GITHUB_SHA}"
           echo "TAG=$TAG" >> $GITHUB_ENV
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "TAG set to $TAG"
 
       - name: Build and push devcontainer image with cache
         uses: docker/build-push-action@v6

@@ -1,4 +1,6 @@
 {
+  "name": "arrangement-hub",
+  "version": "0.0.1",
   "private": true,
   "workspaces": [
     "client",
@@ -10,13 +12,14 @@
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "build:client": "npm run build --workspace client",
     "build:server": "npm run build --workspace server",
-		"build": "npm run build:client && npm run build:server",
+    "build": "npm run build:client && npm run build:server",
     "lint:client": "npm run lint --workspace client",
     "lint:server": "npm run lint --workspace server",
     "lint": "npm run lint:client && npm run lint:server",
-		"clean": "./scripts/clean.sh"
+    "clean": "./scripts/clean.sh"
   },
   "devDependencies": {
-    "concurrently": "^7.6.0"
+    "concurrently": "^7.6.0",
+    "prettier": "^3.6.2"
   }
 }

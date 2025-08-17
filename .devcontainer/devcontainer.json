@@ -2,11 +2,9 @@
   "name": "Build/Dev Container",
   "dockerFile": "Dockerfile",
   "workspaceFolder": "/root",
-  "mounts": [
-    "source=${localWorkspaceFolder},target=/root,type=bind"
-  ],
+  "mounts": ["source=${localWorkspaceFolder},target=/root,type=bind"],
   "forwardPorts": [3000, 5173],
-  "postCreateCommand": "/root/.devcontainer/setup-container.sh",
+  "postCreateCommand": ".devcontainer/setup-container.sh",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -16,7 +14,10 @@
         "editorconfig.editorconfig",
         "esbenp.prettier-vscode",
         "github.vscode-github-actions",
-        "redhat.vscode-yaml"
+        "orta.vscode-jest",
+        "redhat.vscode-yaml",
+        "streetsidesoftware.code-spell-checker",
+        "vitest.explorer"
       ]
     }
   }

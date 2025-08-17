@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Debug Client",
+      "preLaunchTask": "background-dev-client",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/client"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Server",
+      "program": "${workspaceFolder}/server/src/index.ts",
+      "preLaunchTask": "npm: build:server",
+      "outFiles": [
+        "${workspaceFolder}/server/dist/**/*.{js,cjs,mjs}",
+        "!**/node_modules/**"
+      ]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug Fullstack",
+      "configurations": ["Debug Server", "Debug Client"],
+      "stopAll": true
+    }
+  ]
+}

@@ -11,15 +11,16 @@ on:
 jobs:
   setup-environment:
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: steps.set_tag.outputs.tag
     steps:
-      - name: Prepare Docker
+      - name: Set tag
         id: set_tag
         run: |
           IMAGE_REPOSITORY=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
           TAG="ghcr.io/${IMAGE_REPOSITORY}/devimage:${GITHUB_SHA}"
-          echo "TAG=$TAG" >> $GITHUB_ENV
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "TAG set to $TAG"
+          echo "image_tag set to $TAG"
 
   build-container:
     runs-on: ubuntu-latest
@@ -55,72 +56,68 @@ jobs:
 
   lint-client:
     runs-on: ubuntu-latest
+    needs: [setup-environment, build-container]
     container:
-      image: ${{ github.env.TAG }}
-    needs: build-container
+      image: ${{ needs.setup-environment.outputs.image_tag }}
     steps:
       - run: echo "Lint client"
 
   unit-test-client:
     runs-on: ubuntu-latest
+    needs: [setup-environment, lint-client]
     container:
-      image: ${{ github.env.TAG }}
-    needs: lint-client
+      image: ${{ needs.setup-environment.outputs.image_tag }}
     steps:
       - run: echo "Unit test client"
 
   build-client:
     runs-on: ubuntu-latest
+    needs: [setup-environment, unit-test-client]
     container:
-      image: ${{ github.env.TAG }}
-    needs: unit-test-client
+      image: ${{ needs.setup-environment.outputs.image_tag }}
     steps:
       - run: echo "Build client"
 
   lint-server:
     runs-on: ubuntu-latest
+    needs: [setup-environment, build-container]
     container:
-      image: ${{ github.env.TAG }}
-    needs: build-container
+      image: ${{ needs.setup-environment.outputs.image_tag }}
     steps:
       - run: echo "Lint server"
 
   unit-test-server:
     runs-on: ubuntu-latest
+    needs: [setup-environment, lint-server]
     container:
-      image: ${{ github.env.TAG }}
-    needs: lint-server
+      image: ${{ needs.setup-environment.outputs.image_tag }}
     steps:
       - run: echo "Unit test server"
 
   build-server:
     runs-on: ubuntu-latest
+    needs: [setup-environment, unit-test-server]
     container:
-      image: ${{ github.env.TAG }}
-    needs: unit-test-server
+      image: ${{ needs.setup-environment.outputs.image_tag }}
     steps:
       - run: echo "Build server"
 
   create-server-runtime:
     runs-on: ubuntu-latest
+    needs: [setup-environment, build-server]
     container:
-      image: ${{ github.env.TAG }}
-    needs: build-server
+      image: ${{ needs.setup-environment.outputs.image_tag }}
     steps:
       - run: echo "Create server runtime container"
 
   integration-test:
     runs-on: ubuntu-latest
-    container:
-      image: ${{ github.env.TAG }}
     needs: create-server-runtime
     steps:
       - run: echo "Run integration tests"
 
   e2e-test:
     runs-on: ubuntu-latest
-    container:
-      image: ${{ github.env.TAG }}
     needs: [build-client, integration-test]
     steps:
       - run: echo "Run E2E tests"

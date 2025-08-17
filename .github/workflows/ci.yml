@@ -12,7 +12,7 @@ jobs:
   setup-environment:
     runs-on: ubuntu-latest
     outputs:
-      image_tag: steps.set_tag.outputs.tag
+      image_tag: ${{ steps.set_tag.outputs.tag }}
     steps:
       - name: Set tag
         id: set_tag

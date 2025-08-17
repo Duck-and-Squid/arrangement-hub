@@ -50,7 +50,7 @@ jobs:
           context: .
           file: .devcontainer/Dockerfile
           push: true
-          tags: ${{ github.env.TAG }}
+          tags: ${{ needs.setup-environment.outputs.image_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

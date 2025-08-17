@@ -92,7 +92,9 @@ jobs:
     container:
       image: ${{ needs.setup-environment.outputs.image_tag }}
     steps:
-      - run: echo "Unit test server"
+      - uses: actions/checkout@v4
+      - name: Run unit tests
+        run: npm run test:server
 
   build-server:
     runs-on: ubuntu-latest

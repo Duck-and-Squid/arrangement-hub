@@ -2,6 +2,10 @@
   "compilerOptions": {
     "rootDir": "./src",
     "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2020",
@@ -23,6 +27,8 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "esModuleInterop": true,
-    "skipLibCheck": true
-  }
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src"]
 }

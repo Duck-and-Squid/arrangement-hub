@@ -47,7 +47,7 @@ jobs:
       - name: Build and push devcontainer image with cache
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: .devcontainer
           file: .devcontainer/Dockerfile
           push: true
           tags: ${{ needs.setup-environment.outputs.image_tag }}

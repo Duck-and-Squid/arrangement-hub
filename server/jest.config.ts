@@ -16,6 +16,10 @@ const config: Config = {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
+  collectCoverage: true,
+  coverageDirectory: "<rootDir>/coverage",
+  coverageReporters: ["text", "lcov"],
+  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.test.ts"],
 };
 
 export default config;

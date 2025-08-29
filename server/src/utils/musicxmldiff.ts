@@ -1,8 +1,7 @@
 import { XMLDiffToken, XMLDiffTokenNodeType, XMLDiffTokenEditType } from "@/utils/xmldiff";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import * as xpath from "xpath";
-
-export type Color = string; // e.g., "#RRGGBB"
+import { COLOR_CHANGE, COLOR_DELETE, COLOR_INSERT, COLORABLE_ELEMENTS } from "@/utils/musicxmldiff-config";
 
 export type MusicXMLDiffResult = {
   oldXml: string;
@@ -10,45 +9,28 @@ export type MusicXMLDiffResult = {
   unusedTokens: XMLDiffToken[];
 };
 
-const COLOR_INSERT = "#00FF00"; // green
-const COLOR_DELETE = "#FF0000"; // red
-const COLOR_CHANGE = "#FFFF00"; // yellow
-
-const COLORABLE_ELEMENTS = new Set([
-  "note",
-  "direction",
-  "harmony",
-  "backup",
-  "forward",
-  "attributes",
-  "clef",
-  "key",
-  "time",
-  "part",
-  "measure",
-  "rest",
-]);
-
-// Apply color attribute to an element
-const setColor = (el: Element | null, color: Color) => {
+const setColor = (el: Element | null, color: string) => {
   if (el) el.setAttribute("color", color);
 };
 
-// Traverse up parents to find the first colorable element
-const findColorableParent = (el: Element | null): Element | null => {
-  let current = el;
+const findColorableParent = (el: Node | null): Element | null => {
+  let current: Node | null = el;
   while (current) {
-    if (COLORABLE_ELEMENTS.has(current.nodeName)) return current;
-    current = current.parentNode as Element | null;
+    if (current.nodeType === 1 && COLORABLE_ELEMENTS.has((current as Element).nodeName)) {
+      return current as Element;
+    }
+    current = current.parentNode;
   }
   return null;
 };
 
-// Find element from XPath using xpath.select
 const findElementFromXPath = (doc: Document, xpathStr: string): Element | null => {
-  const cleanedPath = xpathStr.replace(/\/@.*$|\/text\(\)$/, "");
-  const nodes = xpath.select(cleanedPath, doc) as Element[];
-  return nodes.length > 0 ? nodes[0] : null;
+  const cleanedPath = xpathStr.replace(/\/@[^/]+$/g, "").replace(/\/text\(\)$/g, "");
+  const nodes = xpath.select(cleanedPath, doc) as Node[];
+  for (const node of nodes) {
+    if (node.nodeType === 1) return node as Element;
+  }
+  return null;
 };
 
 export const processMusicXMLDiff = (
@@ -68,35 +50,37 @@ export const processMusicXMLDiff = (
     const oldEl = findElementFromXPath(oldDoc, token.xpath);
     const newEl = findElementFromXPath(newDoc, token.xpath);
 
-    const isColorable = (el: Element | null) => el && COLORABLE_ELEMENTS.has(el.nodeName);
-
-    // INSERT ELEMENT
-    if (token.nodeType === XMLDiffTokenNodeType.ELEMENT && token.editType === XMLDiffTokenEditType.INSERT) {
-      if (isColorable(newEl)) setColor(newEl, COLOR_INSERT);
-      else unusedTokens.push(token);
-      continue;
-    }
-
-    // DELETE ELEMENT
-    if (token.nodeType === XMLDiffTokenNodeType.ELEMENT && token.editType === XMLDiffTokenEditType.DELETE) {
-      if (isColorable(oldEl)) setColor(oldEl, COLOR_DELETE);
-      else unusedTokens.push(token);
-      continue;
-    }
-
-    // CHANGE / ATTRIBUTE / CONTENT
-    const oldParent = findColorableParent(oldEl);
-    const newParent = findColorableParent(newEl);
+    // Determine the parent to color for all cases
+    const oldParent = findColorableParent(oldEl) || (oldEl?.nodeType === 1 ? (oldEl as Element) : null);
+    const newParent = findColorableParent(newEl) || (newEl?.nodeType === 1 ? (newEl as Element) : null);
 
     let colored = false;
-    if (oldParent) {
-      setColor(oldParent, COLOR_CHANGE);
-      colored = true;
+
+    if (token.nodeType === XMLDiffTokenNodeType.ELEMENT) {
+      if (token.editType === XMLDiffTokenEditType.INSERT) {
+        if (newParent) {
+          setColor(newParent, COLOR_INSERT);
+          colored = true;
+        }
+      }
+      if (token.editType === XMLDiffTokenEditType.DELETE) {
+        if (oldParent) {
+          setColor(oldParent, COLOR_DELETE);
+          colored = true;
+        }
+      }
+    } else {
+      // CONTENT or ATTRIBUTE change
+      if (oldParent) {
+        setColor(oldParent, COLOR_CHANGE);
+        colored = true;
+      }
+      if (newParent) {
+        setColor(newParent, COLOR_CHANGE);
+        colored = true;
+      }
     }
-    if (newParent) {
-      setColor(newParent, COLOR_CHANGE);
-      colored = true;
-    }
+
     if (!colored) unusedTokens.push(token);
   }
 

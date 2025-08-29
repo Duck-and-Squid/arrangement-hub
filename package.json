@@ -17,6 +17,8 @@
     "lint:client": "npm run lint --workspace client",
     "lint:server": "npm run lint --workspace server",
     "lint": "npm run lint:client && npm run lint:server",
+    "test:server": "npm run test --workspace server",
+    "test": "npm run test:server",
     "clean": "./scripts/clean.sh"
   },
   "devDependencies": {

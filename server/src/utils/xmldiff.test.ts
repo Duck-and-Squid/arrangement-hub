@@ -1,256 +1,344 @@
 import { describe, expect, test } from "@jest/globals";
-import { XMLDiffTokenEditType, XMLDiffTokenNodeType, computeXMLDiffTokens } from "@/utils/xmldiff";
+import {
+  XMLDiffTokenEditType,
+  XMLDiffTokenNodeType,
+  XMLDiff,
+  type XMLDiffToken,
+  type ElementToken,
+  type AttributeToken,
+  type ContentToken,
+} from "@/utils/xmldiff";
 
+/* ----------------------------- Type guards ----------------------------- */
+const assertElementToken = (token: XMLDiffToken): ElementToken => {
+  expect(token.nodeType).toBe(XMLDiffTokenNodeType.ELEMENT);
+  const t = token as ElementToken;
+  expect(typeof t.name).toBe("string");
+  expect(t.name.length).toBeGreaterThanOrEqual(0);
+  return t;
+};
+
+const assertAttributeToken = (token: XMLDiffToken): AttributeToken => {
+  expect(token.nodeType).toBe(XMLDiffTokenNodeType.ATTRIBUTE);
+  const t = token as AttributeToken;
+  expect(typeof t.name).toBe("string");
+  return t;
+};
+
+const assertContentToken = (token: XMLDiffToken): ContentToken => {
+  expect(token.nodeType).toBe(XMLDiffTokenNodeType.CONTENT);
+  return token as ContentToken;
+};
+
+/* ----------------------------- Basic no-change ----------------------------- */
 describe("no change", () => {
-  test("no op", () => {
-    expect(computeXMLDiffTokens("<foo />", "<foo />")).toStrictEqual([]);
+  test("empty element", () => {
+    expect(new XMLDiff().computeXMLDiffTokens("<foo />", "<foo />")).toStrictEqual([]);
   });
 
-  test("no op nested", () => {
-    expect(computeXMLDiffTokens("<foo><bar /></foo>", "<foo><bar /></foo>")).toStrictEqual([]);
-  });
-
-  test("no op order", () => {
-    expect(computeXMLDiffTokens("<foo><bar /><qux /></foo>", "<foo><qux /><bar /></foo>")).toStrictEqual([]);
-  });
-
-  test("no op order nested", () => {
-    expect(computeXMLDiffTokens("<foo><bar>a</bar><qux /></foo>", "<foo><qux /><bar>a</bar></foo>")).toStrictEqual([]);
+  test("nested element", () => {
+    expect(new XMLDiff().computeXMLDiffTokens("<foo><bar /></foo>", "<foo><bar /></foo>")).toStrictEqual([]);
   });
 });
 
-describe("only one insert", () => {
-  test("insert element", () => {
-    const result = computeXMLDiffTokens("<foo></foo>", "<foo><bar /></foo>");
-    expect(result).toHaveLength(1);
+/* ----------------------------- Statefulness ----------------------------- */
+describe("statefulness", () => {
+  test("internal state reset", () => {
+    const xmlDiff = new XMLDiff();
 
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.INSERT);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.ELEMENT);
-    expect(token.xpath).toStrictEqual("/foo/bar");
-  });
+    const tokens1 = xmlDiff.computeXMLDiffTokens("<root><a>1</a></root>", "<root><a>2</a></root>");
+    expect(tokens1).toHaveLength(1);
+    {
+      const ct = assertContentToken(tokens1[0]);
+      expect(ct.xpath).toBe("/root/a/text()");
+      expect(ct.oldValue).toBe("1");
+      expect(ct.newValue).toBe("2");
+    }
 
-  test("insert attribute", () => {
-    const result = computeXMLDiffTokens("<foo></foo>", '<foo bar="qux"></foo>');
-    expect(result).toHaveLength(1);
-
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.INSERT);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.ATTRIBUTE);
-    expect(token.xpath).toStrictEqual("/foo/@bar");
-  });
-
-  test("insert content", () => {
-    const result = computeXMLDiffTokens("<foo></foo>", "<foo>a</foo>");
-    expect(result).toHaveLength(1);
-
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.INSERT);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.CONTENT);
-    expect(token.xpath).toStrictEqual("/foo/text()");
+    const tokens2 = xmlDiff.computeXMLDiffTokens("<root><b>hello</b></root>", "<root><b>world</b></root>");
+    expect(tokens2).toHaveLength(1);
+    {
+      const ct = assertContentToken(tokens2[0]);
+      expect(ct.xpath).toBe("/root/b/text()");
+      expect(ct.oldValue).toBe("hello");
+      expect(ct.newValue).toBe("world");
+    }
   });
 });
 
-describe("only one change", () => {
-  test("change attribute", () => {
-    const result = computeXMLDiffTokens('<foo bar="old"></foo>', '<foo bar="new"></foo>');
-    expect(result).toHaveLength(1);
-
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.CHANGE);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.ATTRIBUTE);
-    expect(token.xpath).toStrictEqual("/foo/@bar");
+/* ----------------------------- Insertions ----------------------------- */
+describe("insertions", () => {
+  test("element", () => {
+    const token = new XMLDiff().computeXMLDiffTokens("<foo></foo>", "<foo><bar /></foo>")[0];
+    expect(token.editType).toBe(XMLDiffTokenEditType.INSERT);
+    const et = assertElementToken(token);
+    expect(et.xpath).toBe("/foo/bar");
+    expect(et.name).toBe("bar");
   });
 
-  test("change content", () => {
-    const result = computeXMLDiffTokens("<foo>a</foo>", "<foo>b</foo>");
-    expect(result).toHaveLength(1);
-
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.CHANGE);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.CONTENT);
-    expect(token.xpath).toStrictEqual("/foo/text()");
-  });
-});
-
-describe("only one delete", () => {
-  test("delete element", () => {
-    const result = computeXMLDiffTokens("<foo><bar /></foo>", "<foo></foo>");
-    expect(result).toHaveLength(1);
-
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.DELETE);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.ELEMENT);
-    expect(token.xpath).toStrictEqual("/foo/bar");
+  test("attribute", () => {
+    const token = new XMLDiff().computeXMLDiffTokens("<foo></foo>", '<foo bar="qux"></foo>')[0];
+    expect(token.editType).toBe(XMLDiffTokenEditType.INSERT);
+    const at = assertAttributeToken(token);
+    expect(at.xpath).toBe("/foo/@bar");
+    expect(at.name).toBe("bar");
+    expect(at.newValue).toBe("qux");
   });
 
-  test("delete attribute", () => {
-    const result = computeXMLDiffTokens('<foo bar="qux"></foo>', "<foo></foo>");
-    expect(result).toHaveLength(1);
-
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.DELETE);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.ATTRIBUTE);
-    expect(token.xpath).toStrictEqual("/foo/@bar");
-  });
-
-  test("delete content", () => {
-    const result = computeXMLDiffTokens("<foo>a</foo>", "<foo></foo>");
-    expect(result).toHaveLength(1);
-
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.DELETE);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.CONTENT);
-    expect(token.xpath).toStrictEqual("/foo/text()");
+  test("content", () => {
+    const token = new XMLDiff().computeXMLDiffTokens("<foo></foo>", "<foo>a</foo>")[0];
+    expect(token.editType).toBe(XMLDiffTokenEditType.INSERT);
+    const ct = assertContentToken(token);
+    expect(ct.xpath).toBe("/foo/text()");
+    expect(ct.newValue).toBe("a");
   });
 });
 
+/* ----------------------------- Changes ----------------------------- */
+describe("changes", () => {
+  test("attribute change", () => {
+    const token = new XMLDiff().computeXMLDiffTokens('<foo bar="old"></foo>', '<foo bar="new"></foo>')[0];
+    expect(token.editType).toBe(XMLDiffTokenEditType.CHANGE);
+    const at = assertAttributeToken(token);
+    expect(at.xpath).toBe("/foo/@bar");
+    expect(at.oldValue).toBe("old");
+    expect(at.newValue).toBe("new");
+  });
+
+  test("content change", () => {
+    const token = new XMLDiff().computeXMLDiffTokens("<foo>a</foo>", "<foo>b</foo>")[0];
+    expect(token.editType).toBe(XMLDiffTokenEditType.CHANGE);
+    const ct = assertContentToken(token);
+    expect(ct.xpath).toBe("/foo/text()");
+    expect(ct.oldValue).toBe("a");
+    expect(ct.newValue).toBe("b");
+  });
+});
+
+/* ----------------------------- Deletions ----------------------------- */
+describe("deletions", () => {
+  test("element", () => {
+    const token = new XMLDiff().computeXMLDiffTokens("<foo><bar /></foo>", "<foo></foo>")[0];
+    expect(token.editType).toBe(XMLDiffTokenEditType.DELETE);
+    const et = assertElementToken(token);
+    expect(et.xpath).toBe("/foo/bar");
+    expect(et.name).toBe("bar");
+  });
+
+  test("attribute", () => {
+    const token = new XMLDiff().computeXMLDiffTokens('<foo bar="qux"></foo>', "<foo></foo>")[0];
+    expect(token.editType).toBe(XMLDiffTokenEditType.DELETE);
+    const at = assertAttributeToken(token);
+    expect(at.xpath).toBe("/foo/@bar");
+    expect(at.oldValue).toBe("qux");
+  });
+
+  test("content", () => {
+    const token = new XMLDiff().computeXMLDiffTokens("<foo>a</foo>", "<foo></foo>")[0];
+    expect(token.editType).toBe(XMLDiffTokenEditType.DELETE);
+    const ct = assertContentToken(token);
+    expect(ct.xpath).toBe("/foo/text()");
+    expect(ct.oldValue).toBe("a");
+  });
+});
+
+/* ----------------------------- Complex diffs ----------------------------- */
 describe("complex diffs", () => {
-  test("element renamed (delete+insert)", () => {
-    const result = computeXMLDiffTokens("<foo><bar /></foo>", "<foo><baz /></foo>");
-    expect(result).toHaveLength(2);
-
-    expect(result).toEqual(
+  test("rename element triggers delete+insert", () => {
+    const tokens = new XMLDiff().computeXMLDiffTokens("<foo><bar /></foo>", "<foo><baz /></foo>");
+    expect(tokens).toHaveLength(2);
+    expect(tokens).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           editType: XMLDiffTokenEditType.DELETE,
           nodeType: XMLDiffTokenNodeType.ELEMENT,
           xpath: "/foo/bar",
+          name: "bar",
         }),
         expect.objectContaining({
           editType: XMLDiffTokenEditType.INSERT,
           nodeType: XMLDiffTokenNodeType.ELEMENT,
           xpath: "/foo/baz",
+          name: "baz",
         }),
       ]),
     );
   });
 
-  test("parent and child both changed", () => {
-    const result = computeXMLDiffTokens(
+  test("attribute + child content change", () => {
+    const tokens = new XMLDiff().computeXMLDiffTokens(
       '<foo bar="old"><child>keep</child></foo>',
       '<foo bar="new"><child>changed</child></foo>',
     );
-    expect(result).toHaveLength(2);
-
-    expect(result).toEqual(
+    expect(tokens).toHaveLength(2);
+    expect(tokens).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           editType: XMLDiffTokenEditType.CHANGE,
           nodeType: XMLDiffTokenNodeType.ATTRIBUTE,
           xpath: "/foo/@bar",
+          oldValue: "old",
+          newValue: "new",
         }),
         expect.objectContaining({
           editType: XMLDiffTokenEditType.CHANGE,
           nodeType: XMLDiffTokenNodeType.CONTENT,
           xpath: "/foo/child/text()",
+          oldValue: "keep",
+          newValue: "changed",
         }),
       ]),
     );
   });
 
-  test("sibling changed but other sibling untouched", () => {
-    const result = computeXMLDiffTokens("<foo><a>same</a><b>old</b></foo>", "<foo><a>same</a><b>new</b></foo>");
-    expect(result).toHaveLength(1);
-
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.CHANGE);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.CONTENT);
-    expect(token.xpath).toStrictEqual("/foo/b/text()");
+  test("mixed insert/delete/change with siblings", () => {
+    const tokens = new XMLDiff().computeXMLDiffTokens(
+      "<foo><a>old</a><b /><c /></foo>",
+      "<foo><a>new</a><c /><d /></foo>",
+    );
+    expect(tokens).toHaveLength(3);
+    expect(tokens).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          editType: XMLDiffTokenEditType.CHANGE,
+          nodeType: XMLDiffTokenNodeType.CONTENT,
+          xpath: "/foo/a/text()",
+          oldValue: "old",
+          newValue: "new",
+        }),
+        expect.objectContaining({
+          editType: XMLDiffTokenEditType.DELETE,
+          nodeType: XMLDiffTokenNodeType.ELEMENT,
+          xpath: "/foo/b",
+          name: "b",
+        }),
+        expect.objectContaining({
+          editType: XMLDiffTokenEditType.INSERT,
+          nodeType: XMLDiffTokenNodeType.ELEMENT,
+          xpath: "/foo/d",
+          name: "d",
+        }),
+      ]),
+    );
   });
 
-  test("insert new sibling while others unchanged", () => {
-    const result = computeXMLDiffTokens("<foo><a>1</a></foo>", "<foo><a>1</a><b>2</b></foo>");
-    expect(result).toHaveLength(1);
-
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.INSERT);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.ELEMENT);
-    expect(token.xpath).toStrictEqual("/foo/b");
+  test("nested insertions: parent with child", () => {
+    const tokens = new XMLDiff().computeXMLDiffTokens("<root></root>", "<root><parent><child /></parent></root>");
+    expect(tokens).toHaveLength(1);
+    const et = assertElementToken(tokens[0]);
+    expect(et.editType).toBe(XMLDiffTokenEditType.INSERT);
+    expect(et.xpath).toBe("/root/parent");
+    expect(et.name).toBe("parent");
   });
 
-  test("delete one child but keep others", () => {
-    const result = computeXMLDiffTokens("<foo><a /><b /></foo>", "<foo><a /></foo>");
-    expect(result).toHaveLength(1);
-
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.DELETE);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.ELEMENT);
-    expect(token.xpath).toStrictEqual("/foo/b");
-  });
-
-  test("attribute deleted on parent while child inserted", () => {
-    const result = computeXMLDiffTokens('<foo bar="x"></foo>', "<foo><child /></foo>");
-    expect(result).toHaveLength(2);
-
-    expect(result).toEqual(
+  test("attribute deleted while child inserted", () => {
+    const tokens = new XMLDiff().computeXMLDiffTokens('<foo bar="x"></foo>', "<foo><child /></foo>");
+    expect(tokens).toHaveLength(2);
+    expect(tokens).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           editType: XMLDiffTokenEditType.DELETE,
           nodeType: XMLDiffTokenNodeType.ATTRIBUTE,
           xpath: "/foo/@bar",
+          oldValue: "x",
         }),
         expect.objectContaining({
           editType: XMLDiffTokenEditType.INSERT,
           nodeType: XMLDiffTokenNodeType.ELEMENT,
           xpath: "/foo/child",
+          name: "child",
         }),
       ]),
     );
   });
 
   test("content deleted and attribute changed", () => {
-    const result = computeXMLDiffTokens('<foo bar="a">hello</foo>', '<foo bar="b"></foo>');
-    expect(result).toHaveLength(2);
-
-    expect(result).toEqual(
+    const tokens = new XMLDiff().computeXMLDiffTokens('<foo bar="a">hello</foo>', '<foo bar="b"></foo>');
+    expect(tokens).toHaveLength(2);
+    expect(tokens).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           editType: XMLDiffTokenEditType.CHANGE,
           nodeType: XMLDiffTokenNodeType.ATTRIBUTE,
           xpath: "/foo/@bar",
+          oldValue: "a",
+          newValue: "b",
         }),
         expect.objectContaining({
           editType: XMLDiffTokenEditType.DELETE,
           nodeType: XMLDiffTokenNodeType.CONTENT,
           xpath: "/foo/text()",
+          oldValue: "hello",
         }),
       ]),
     );
   });
+});
 
-  test("nested insertion: parent inserted with child inside", () => {
-    const result = computeXMLDiffTokens("<root></root>", "<root><parent><child /></parent></root>");
-    expect(result).toHaveLength(1);
+describe("indexed children", () => {
+  test("change content in second child", () => {
+    const xml1 = "<root><note>A</note><note>B</note></root>";
+    const xml2 = "<root><note>A</note><note>C</note></root>";
+    const tokens = new XMLDiff().computeXMLDiffTokens(xml1, xml2);
 
-    const token = result[0];
-    expect(token.editType).toStrictEqual(XMLDiffTokenEditType.INSERT);
-    expect(token.nodeType).toStrictEqual(XMLDiffTokenNodeType.ELEMENT);
-    expect(token.xpath).toStrictEqual("/root/parent");
+    expect(tokens).toHaveLength(1);
+    const ct = assertContentToken(tokens[0]);
+    expect(ct.editType).toBe(XMLDiffTokenEditType.CHANGE);
+    expect(ct.xpath).toBe("/root/note[2]/text()");
+    expect(ct.oldValue).toBe("B");
+    expect(ct.newValue).toBe("C");
   });
 
-  test("mixed: one sibling changed, another deleted, another inserted", () => {
-    const result = computeXMLDiffTokens("<foo><a>old</a><b /><c /></foo>", "<foo><a>new</a><c /><d /></foo>");
-    expect(result).toHaveLength(3);
+  test("insert second child", () => {
+    const xml1 = "<root><note>A</note></root>";
+    const xml2 = "<root><note>A</note><note>B</note></root>";
+    const tokens = new XMLDiff().computeXMLDiffTokens(xml1, xml2);
 
-    expect(result).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          editType: XMLDiffTokenEditType.CHANGE,
-          nodeType: XMLDiffTokenNodeType.CONTENT,
-          xpath: "/foo/a/text()",
-        }),
-        expect.objectContaining({
-          editType: XMLDiffTokenEditType.DELETE,
-          nodeType: XMLDiffTokenNodeType.ELEMENT,
-          xpath: "/foo/b",
-        }),
-        expect.objectContaining({
-          editType: XMLDiffTokenEditType.INSERT,
-          nodeType: XMLDiffTokenNodeType.ELEMENT,
-          xpath: "/foo/d",
-        }),
-      ]),
+    expect(tokens).toHaveLength(1);
+    const et = assertElementToken(tokens[0]);
+    expect(et.editType).toBe(XMLDiffTokenEditType.INSERT);
+    expect(et.xpath).toBe("/root/note[2]");
+    expect(et.name).toBe("note");
+  });
+
+  test("delete first of multiple children", () => {
+    const xml1 = "<root><note>A</note><note>B</note></root>";
+    const xml2 = "<root><note>B</note></root>";
+    const tokens = new XMLDiff().computeXMLDiffTokens(xml1, xml2);
+
+    expect(tokens).toHaveLength(1);
+    const et = assertElementToken(tokens[0]);
+    expect(et.editType).toBe(XMLDiffTokenEditType.DELETE);
+    expect(et.xpath).toBe("/root/note[1]");
+    expect(et.name).toBe("note");
+  });
+
+  test("complex nested multiple children", () => {
+    const xml1 = "<root><bar><note>A</note><note>B</note></bar></root>";
+    const xml2 = "<root><bar><note>B</note><note>C</note></bar></root>";
+    const tokens = new XMLDiff().computeXMLDiffTokens(xml1, xml2);
+
+    expect(tokens).toHaveLength(2);
+    expect(tokens.map((t) => t.xpath)).toEqual(
+      expect.arrayContaining(["/root/bar/note[1]/text()", "/root/bar/note[2]/text()"]),
     );
+  });
+});
+
+describe("edge cases", () => {
+  test("empty vs self-closing", () => {
+    const tokens = new XMLDiff().computeXMLDiffTokens("<foo></foo>", "<foo />");
+    expect(tokens).toStrictEqual([]);
+  });
+
+  test("element with multiple attributes changed", () => {
+    const xml1 = '<foo a="1" b="2" c="3"/>';
+    const xml2 = '<foo a="1" b="X" c="3"/>';
+    const tokens = new XMLDiff().computeXMLDiffTokens(xml1, xml2);
+    expect(tokens).toHaveLength(1);
+    const at = assertAttributeToken(tokens[0]);
+    expect(at.xpath).toBe("/foo/@b");
+    expect(at.oldValue).toBe("2");
+    expect(at.newValue).toBe("X");
   });
 });

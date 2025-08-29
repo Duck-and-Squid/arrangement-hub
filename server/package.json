@@ -13,9 +13,9 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@rgrove/parse-xml": "^4.2.0",
     "express": "^5.1.0",
-    "fast-xml-parser": "^5.2.5",
-    "munkres-algorithm": "^1.0.2"
+    "fast-xml-parser": "^5.2.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",

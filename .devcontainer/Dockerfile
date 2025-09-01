@@ -23,7 +23,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     && rm -rf squashfs-root /tmp/MuseScore.AppImage
 
 # Install runtime dependencies for MuseScore
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 \
     libopengl0 \
     libjack0 \

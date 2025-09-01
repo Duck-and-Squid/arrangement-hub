@@ -22,8 +22,9 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     && ln -s /opt/musescore/AppRun /usr/local/bin/mscore \
     && rm -rf squashfs-root /tmp/MuseScore.AppImage
 
-# Install runtime dependencies for MuseScore
+# Install runtime dependencies for MuseScore and ffmpeg
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
     libnss3 \
     libopengl0 \
     libjack0 \

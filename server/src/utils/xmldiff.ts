@@ -52,6 +52,8 @@ type UNode = {
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@",
+  allowBooleanAttributes: true,
+  parseAttributeValue: true,
   textNodeName: "#text",
   trimValues: false,
 });
@@ -63,6 +65,10 @@ export class XMLDiff {
   private pairCostMemo = new Map<string, number>();
 
   /* ------------------------------- normalization -------------------------------- */
+  private sanitizeXML(xml: string): string {
+    return xml.replace(/<\?xml[^>]*\?>/, "").replace(/<!DOCTYPE[^>]*>/, "");
+  }
+
   private toUNode(name: string, obj: any): UNode {
     const id = this.nextId++;
     const attrs: Record<string, string> = {};
@@ -98,7 +104,8 @@ export class XMLDiff {
 
   private parseXMLToUNode(xml: string): UNode {
     this.nextId = 1; // reset ID counter for each parse
-    const doc = parser.parse(xml);
+    const sanitized = this.sanitizeXML(xml);
+    const doc = parser.parse(sanitized);
     const rootName = Object.keys(doc)[0];
     return this.toUNode(rootName, doc[rootName]);
   }

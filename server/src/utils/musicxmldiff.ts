@@ -1,7 +1,8 @@
-import { XMLDiffToken, XMLDiffTokenNodeType, XMLDiffTokenEditType } from "@/utils/xmldiff";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import * as xpath from "xpath";
+
 import { COLOR_CHANGE, COLOR_DELETE, COLOR_INSERT, COLORABLE_ELEMENTS } from "@/utils/musicxmldiff-config";
+import { XMLDiffToken, XMLDiffTokenNodeType, XMLDiffTokenEditType } from "@/utils/xmldiff";
 
 export type MusicXMLDiffResult = {
   oldXml: string;
@@ -51,8 +52,8 @@ export const processMusicXMLDiff = (
     const newEl = findElementFromXPath(newDoc, token.xpath);
 
     // Determine the parent to color for all cases
-    const oldParent = findColorableParent(oldEl) || (oldEl?.nodeType === 1 ? (oldEl as Element) : null);
-    const newParent = findColorableParent(newEl) || (newEl?.nodeType === 1 ? (newEl as Element) : null);
+    const oldParent = findColorableParent(oldEl);
+    const newParent = findColorableParent(newEl);
 
     let colored = false;
 

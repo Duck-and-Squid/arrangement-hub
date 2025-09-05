@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+
 import { COLOR_INSERT, COLOR_DELETE, COLOR_CHANGE, isValidMusicXMLColor } from "@/utils/musicxmldiff-config";
 
 describe("MusicXML diff colors", () => {

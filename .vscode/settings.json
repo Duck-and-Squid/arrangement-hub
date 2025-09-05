@@ -1,6 +1,10 @@
 {
+  "files.associations": {
+    "*.musicxml": "xml"
+  },
   "editor.rulers": [120],
   "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "jest.virtualFolders": [{ "name": "server", "rootPath": "server", "runMode": "on-demand" }],
   "[markdown]": {
     "editor.rulers": [80]
   }

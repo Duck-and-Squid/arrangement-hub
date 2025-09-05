@@ -1,6 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
 import { processMusicXMLDiff } from "@/utils/musicxmldiff";
 import { XMLDiff, XMLDiffToken, XMLDiffTokenNodeType, XMLDiffTokenEditType } from "@/utils/xmldiff";
+import fs from "node:fs";
 
 const BASE_OLD_XML = `
 <score-partwise version="3.1">
@@ -328,5 +329,21 @@ describe("processMusicXMLDiff - integration via XMLDiff", () => {
     expect(result.newXml).toMatch(/<note[^>]*color="#FFFF00"[^>]*>\s*<pitch><step>E<\/step>/);
     expect(result.newXml).toMatch(/<measure[^>]*color="#FFFF00"[^>]*>/);
     expect(result.unusedTokens).toHaveLength(0);
+  });
+});
+
+describe("processMusicXMLDiff - regression tests on real examples", () => {
+  // TODO: finish and correct for this regression test case
+  test("tmp", () => {
+    const aXML = fs.readFileSync("/root/shared/a.musicxml", "utf-8");
+    const bXML = fs.readFileSync("/root/shared/b.musicxml", "utf-8");
+
+    const diffTokens = new XMLDiff().computeXMLDiffTokens(aXML, bXML);
+    console.log(diffTokens);
+    const { oldXml, newXml, unusedTokens } = processMusicXMLDiff(aXML, bXML, diffTokens);
+
+    fs.writeFileSync("/root/old.musicxml", oldXml);
+    fs.writeFileSync("/root/new.musicxml", newXml);
+    console.log(unusedTokens);
   });
 });

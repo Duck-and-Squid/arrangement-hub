@@ -47,7 +47,7 @@ jobs:
       - name: Build and push devcontainer image with cache
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: .devcontainer
           file: .devcontainer/Dockerfile
           push: true
           tags: ${{ needs.setup-environment.outputs.image_tag }}
@@ -92,7 +92,16 @@ jobs:
     container:
       image: ${{ needs.setup-environment.outputs.image_tag }}
     steps:
-      - run: echo "Unit test server"
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Run unit tests
+        run: npm run test:server
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-server-artifacts
+          path: server/coverage
 
   build-server:
     runs-on: ubuntu-latest

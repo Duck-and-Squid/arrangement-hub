@@ -4,7 +4,7 @@
   "workspaceFolder": "/root",
   "mounts": ["source=${localWorkspaceFolder},target=/root,type=bind"],
   "forwardPorts": [3000, 5173],
-  "postCreateCommand": ".devcontainer/setup-container.sh",
+  "postAttachCommand": ".devcontainer/setup-container.sh",
   "customizations": {
     "vscode": {
       "extensions": [
